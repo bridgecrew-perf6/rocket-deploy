@@ -2,4 +2,6 @@
 Rocket deploy 🚀
 
 ## To run the deployment
-`npm deploy`
+```
+npm deploy
+```
