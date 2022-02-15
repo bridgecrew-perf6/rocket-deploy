@@ -14,3 +14,5 @@ npm i ftp-deploy
 ```
 npm deploy
 ```
+
+### Can be used with any programming language and any ftp/ftps.
