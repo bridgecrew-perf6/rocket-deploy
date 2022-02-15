@@ -12,7 +12,7 @@ const config = {
     localRoot: __dirname + "/",
     remoteRoot: "",
     // include: ["*", "**/*"],      // this would upload everything except dot files
-    include: ["{,.}*"],
+    include: ["{,.}*"], // this would upload everything except excluded files
     // e.g. exclude sourcemaps, and ALL files in node_modules (including dot files)
     exclude: [
         "dist/**/*.map",
