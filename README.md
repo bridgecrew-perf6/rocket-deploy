@@ -1,7 +1,7 @@
 # rocket-deploy
 Rocket deploy 🚀
 
-## Before use install dependecies
+## Before use install dependecies
 ```
 npm i
 ```
