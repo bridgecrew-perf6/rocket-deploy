@@ -1,5 +1,4 @@
-# rocket-deploy
-Rocket deploy 🚀
+# Rocket deploy 🚀
 
 ## Before use, install dependecies
 ```
