@@ -1,0 +1,8 @@
+{
+    "devDependencies": {
+        "ftp-deploy": "^2.3.8"
+    },
+    "scripts": {
+        "deploy": "node deploy"
+    }
+}
