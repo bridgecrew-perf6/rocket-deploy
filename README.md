@@ -4,10 +4,6 @@
 ```
 npm i
 ```
-or
-```
-npm i ftp-deploy
-```
 
 ## To run the deployment
 ```

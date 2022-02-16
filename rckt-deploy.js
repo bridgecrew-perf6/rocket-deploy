@@ -1,7 +1,6 @@
 "use strict";
 
 const chalk = require('chalk');
-//https://www.npmjs.com/package/ftp-deploy
 
 const upath = require("upath");
 const util = require("util");
@@ -18,7 +17,8 @@ const minimatch = require("minimatch");
 var PromiseFtp = require("promise-ftp");
 var PromiseSftp = require("ssh2-sftp-client");
 
-const rawConfig = fs.readFileSync('deploy.json');
+const appDir = path.dirname(require.main.filename);
+const rawConfig = fs.readFileSync(`${appDir}/.rckt-deploy.json`);
 
 const config = {
     user: "",
@@ -26,7 +26,7 @@ const config = {
     password: "",
     host: "",
     port: 21,
-    localRoot: __dirname + "/",
+    localRoot: appDir,
     remoteRoot: "",
     include: ["{,.}*"], // this would upload everything except excluded files
     // e.g. exclude sourcemaps, and ALL files in node_modules (including dot files)
@@ -36,15 +36,7 @@ const config = {
         "node_modules/**",
         "node_modules/**/.*",
         ".git/**",
-        "deploy.js",
-        "package.json",
-        "package-lock.json",
-        "README.md",
-        "composer.lock",
-        ".gitignore",
-        ".github",
-        ".DS_Store",
-        "deploy.json"
+        ".rckt-deploy.json"
     ],
     // delete ALL existing files at destination before uploading, if true
     deleteRemote: false,
@@ -54,8 +46,6 @@ const config = {
     sftp: false
 };
 Object.assign(config, JSON.parse(rawConfig));
-
-console.log(config);
 
 const lib = {
     checkIncludes(config) {
@@ -375,5 +365,9 @@ ftpDeploy
     .catch(err => console.log(chalk.red(err.message)));
 
 ftpDeploy.on("uploaded", function (data) {
-    process.stdout.write(`${data.transferredFileCount}/${data.totalFilesCount}\r`);
+    process.stdout.write(chalk.yellow(`${data.transferredFileCount}/${data.totalFilesCount}\r`));
+});
+
+ftpDeploy.on("log", function (data) {
+    console.log(chalk.yellow(data.message));
 });
