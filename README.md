@@ -18,4 +18,4 @@ npm run deploy
 
 ### Add exclude file don't remove it on deploy, you have to allow delete whole folder.
 
-Original source without deploy.js script: https://github.com/simonh1000/ftp-deploy
+Original source: https://github.com/simonh1000/ftp-deploy
