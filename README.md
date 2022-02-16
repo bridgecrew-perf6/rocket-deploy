@@ -11,7 +11,7 @@ npm i ftp-deploy
 
 ## To run the deployment
 ```
-npm deploy
+npm run deploy
 ```
 
 ### Can be used with any programming language and any ftp/ftps.
