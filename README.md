@@ -1,8 +1,8 @@
 # Rocket deploy 🚀
 
-## Before use, install dependecies 📦
+## Installation
 ```
-npm i
+npm i rckt-deploy
 ```
 
 ## Add to root directory of your project file `.rckt-deploy.json`
