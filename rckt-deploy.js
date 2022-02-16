@@ -9,43 +9,38 @@ const Promise = require("bluebird");
 const fs = require("fs");
 const path = require("path");
 
+const minimatch = require("minimatch");
 const read = require("read");
 const readP = util.promisify(read);
 
-const minimatch = require("minimatch");
+const PromiseFtp = require("promise-ftp");
+const PromiseSftp = require("ssh2-sftp-client");
 
-var PromiseFtp = require("promise-ftp");
-var PromiseSftp = require("ssh2-sftp-client");
 
-const appDir = path.dirname(require.main.filename);
-const rawConfig = fs.readFileSync(`${appDir}/.rckt-deploy.json`);
+const root = path.resolve(__dirname, '../../');
+const rawConfig = fs.readFileSync(`${root}/.rckt-deploy.json`);
 
 const config = {
     user: "",
-    // Password optional, prompted if none given
     password: "",
     host: "",
     port: 21,
-    localRoot: appDir,
-    remoteRoot: "",
-    include: ["{,.}*"], // this would upload everything except excluded files
-    // e.g. exclude sourcemaps, and ALL files in node_modules (including dot files)
-    exclude: [
-        "dist/**/*.map",
-        "node_modules",
-        "node_modules/**",
-        "node_modules/**/.*",
-        ".git/**",
-        ".rckt-deploy.json"
-    ],
-    // delete ALL existing files at destination before uploading, if true
-    deleteRemote: false,
-    // Passive mode is forced (EPSV command is not sent)
+    localRoot: root + "/",
+    remoteRoot: "/",
+    include: ["*"],
+    exclude: [], //will be pushed
+    deleteRemote: true,
     forcePasv: true,
-    // use sftp or ftp
     sftp: false
 };
 Object.assign(config, JSON.parse(rawConfig));
+config.exclude.push(...[
+    "dist/**/*.map",
+    "node_modules/**",
+    "node_modules/**/.*",
+    ".git/**",
+    ".rckt-deploy.json"
+]);
 
 const lib = {
     checkIncludes(config) {
@@ -65,12 +60,7 @@ const lib = {
             return Promise.resolve(config);
         } else {
             let options = {
-                prompt:
-                    "Password for " +
-                    config.user +
-                    "@" +
-                    config.host +
-                    " (ENTER for none): ",
+                prompt: `Password for ${config.user}@${config.host} (ENTER for none): `,
                 default: "",
                 silent: true
             };
@@ -97,7 +87,7 @@ const lib = {
                 canInclude = excludes.reduce(go2, true);
             }
         }
-        // console.log("canIncludePath", include, filePath, res);
+
         return canInclude;
     },
 
@@ -110,7 +100,7 @@ const lib = {
 
             if (fs.lstatSync(currItem).isDirectory()) {
                 // currItem is a directory. Recurse and attach to accumulator
-                let tmp = parseLocal(includes, excludes, localRootDir, newRelDir);
+                let tmp = lib.parseLocal(includes, excludes, localRootDir, newRelDir);
                 for (let key in tmp) {
                     if (tmp[key].length == 0) {
                         delete tmp[key];
@@ -120,8 +110,8 @@ const lib = {
             } else {
                 // currItem is a file
                 // acc[relDir] is always created at previous iteration
-                if (canIncludePath(includes, excludes, newRelDir)) {
-                    // console.log("including", currItem);
+                if (lib.canIncludePath(includes, excludes, newRelDir)) {
+                    console.log("including", currItem);
                     acc[relDir].push(item);
                     return acc;
                 }
@@ -181,34 +171,35 @@ const lib = {
     }
 }
 
-const FtpDeployer = function () {
-    // The constructor for the super class.
-    events.EventEmitter.call(this);
-    this.ftp = null;
-    this.eventObject = {
-        totalFilesCount: 0,
-        transferredFileCount: 0,
-        filename: "",
-    };
+class FtpDeployer {
+    constructor() {
+        this.ftp = null;
+        this.eventObject = {
+            totalFilesCount: 0,
+            transferredFileCount: 0,
+            filename: "",
+        }
 
-    this.makeAllAndUpload = function (remoteDir, filemap) {
+        return this;
+    }
+
+    makeAllAndUpload(remoteDir, filemap) {
         let keys = Object.keys(filemap);
         return Promise.mapSeries(keys, (key) => {
             // console.log("Processing", key, filemap[key]);
             return this.makeAndUpload(remoteDir, key, filemap[key]);
         });
-    };
+    }
 
-    this.makeDir = function (newDirectory) {
+    makeDir(newDirectory) {
         if (newDirectory === "/") {
             return Promise.resolve("unused");
         } else {
             return this.ftp.mkdir(newDirectory, true);
         }
-    };
-    // Creates a remote directory and uploads all of the files in it
-    // Resolves a confirmation message on success
-    this.makeAndUpload = (config, relDir, fnames) => {
+    }
+
+    makeAndUpload(config, relDir, fnames) {
         let newDirectory = upath.join(config.remoteRoot, relDir);
         return this.makeDir(newDirectory, true).then(() => {
             // console.log("newDirectory", newDirectory);
@@ -234,10 +225,9 @@ const FtpDeployer = function () {
                     });
             });
         });
-    };
+    }
 
-    // connects to the server, Resolves the config on success
-    this.connect = (config) => {
+    connect(config) {
         this.ftp = config.sftp ? new PromiseSftp() : new PromiseFtp();
 
         // sftp client does not provide a connection status
@@ -251,11 +241,8 @@ const FtpDeployer = function () {
         return this.ftp
             .connect(config)
             .then((serverMessage) => {
-                this.emit("log", "Connected to: " + config.host);
-                this.emit("log", "Connected: Server message: " + serverMessage);
+                console.log(chalk.yellow(`Connected to: ${config.host}`));
 
-                // sftp does not provide a connection status
-                // so instead provide one ourself
                 if (config.sftp) {
                     this.connectionStatus = "connected";
                 }
@@ -268,22 +255,21 @@ const FtpDeployer = function () {
                     message: "connect: " + err.message,
                 });
             });
-    };
+    }
 
-    this.getConnectionStatus = () => {
+    getConnectionStatus() {
         // only ftp client provides connection status
         // sftp client connection status is handled using events
         return typeof this.ftp.getConnectionStatus === "function"
             ? this.ftp.getConnectionStatus()
             : this.connectionStatus;
-    };
+    }
 
-    this.handleDisconnect = () => {
+    handleDisconnect() {
         this.connectionStatus = "disconnected";
-    };
+    }
 
-    // creates list of all files to upload and starts upload process
-    this.checkLocalAndUpload = (config) => {
+    checkLocalAndUpload(config) {
         try {
             let filemap = lib.parseLocal(
                 config.include,
@@ -291,50 +277,39 @@ const FtpDeployer = function () {
                 config.localRoot,
                 "/"
             );
-            // console.log(filemap);
-            this.emit(
-                "log",
-                "Files found to upload: " + JSON.stringify(filemap)
-            );
             this.eventObject["totalFilesCount"] = lib.countFiles(filemap);
+            console.log(chalk.yellow(`Files found to upload: ${this.eventObject["totalFilesCount"]}`));
 
             return this.makeAllAndUpload(config, filemap);
         } catch (e) {
             return Promise.reject(e);
         }
-    };
+    }
 
-    // Deletes remote directory if requested by config
-    // Returns config
-    this.deleteRemote = (config) => {
+    deleteRemote(config) {
         if (config.deleteRemote) {
             return lib
                 .deleteDir(this.ftp, config.remoteRoot)
                 .then(() => {
-                    this.emit("log", "Deleted directory: " + config.remoteRoot);
                     return config;
                 })
                 .catch((err) => {
-                    this.emit(
-                        "log",
-                        "Deleting failed, trying to continue: " +
-                        JSON.stringify(err)
-                    );
                     return Promise.resolve(config);
                 });
         }
         return Promise.resolve(config);
-    };
+    }
 
-    this.deploy = function (config, cb) {
+    deploy(config, cb) {
         return lib
             .checkIncludes(config)
             .then(lib.getPassword)
-            .then(this.connect)
-            .then(this.deleteRemote)
-            .then(this.checkLocalAndUpload)
+            .then(config => this.connect(config))
+            .then(config => this.deleteRemote(config))
+            .then(config => this.checkLocalAndUpload(config))
             .then((res) => {
                 this.ftp.end();
+
                 if (typeof cb == "function") {
                     cb(null, res);
                 } else {
@@ -350,13 +325,13 @@ const FtpDeployer = function () {
                     return Promise.reject(err);
                 }
             });
-    };
-};
+    }
 
+}
 util.inherits(FtpDeployer, events.EventEmitter);
 
-const ftpDeploy = new FtpDeployer();
 
+const ftpDeploy = new FtpDeployer();
 console.log(chalk.green("Rocket deploy 📦"));
 
 ftpDeploy
@@ -368,6 +343,6 @@ ftpDeploy.on("uploaded", function (data) {
     process.stdout.write(chalk.yellow(`${data.transferredFileCount}/${data.totalFilesCount}\r`));
 });
 
-ftpDeploy.on("log", function (data) {
-    console.log(chalk.yellow(data.message));
+ftpDeploy.on("upload-error", function (data) {
+    console.log(chalk.red(data.err));
 });
