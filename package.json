@@ -1,8 +1,37 @@
 {
+    "name": "rocket-deploy",
+    "version": "0.1",
+    "author": "Ludvik Prokopec",
+    "description": "Deploy your web app in second.",
+    "main": "deploy.js",
+    "keywords": [
+        "ftp",
+        "deploy"
+    ],
     "devDependencies": {
-        "ftp-deploy": "^2.3.8"
+        "chai": "^4.3.0",
+        "delete": "^1.1.0",
+        "ftp-srv": "^4.4.0",
+        "mocha": "^9.2.0"
     },
     "scripts": {
         "deploy": "node deploy"
+    },
+    "dependencies": {
+        "chalk": "^2.4.1",
+        "bluebird": "^3.7.2",
+        "minimatch": "3.0.4",
+        "promise-ftp": "^1.3.5",
+        "read": "^1.0.7",
+        "ssh2-sftp-client": "^7.2.2",
+        "upath": "^2.0.1"
+    },
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lewis-wow/rocket-deploy"
+    },
+    "bugs": {
+        "url": "https://github.com/lewis-wow/rocket-deploy/issues"
     }
 }
