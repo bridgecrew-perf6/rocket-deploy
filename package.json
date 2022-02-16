@@ -1,6 +1,6 @@
 {
-    "name": "rcket-deploy",
-    "version": "1.1.2",
+    "name": "rckt-deploy",
+    "version": "1.1.3",
     "description": "Deploy your web app in second.",
     "main": "rckt-deploy.js",
     "dependencies": {
